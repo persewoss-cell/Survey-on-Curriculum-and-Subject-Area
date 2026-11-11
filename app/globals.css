@@ -101,6 +101,7 @@ button, select, input { font: inherit; }
   background: var(--accent-soft); border-radius: 12px; padding: 1.2vh .9vw;
   font-size: clamp(14px, 2.3vh, 28px); font-weight: 600; animation: pop .5s ease; overflow-wrap: anywhere;
 }
+.note .times { margin-left: .4em; color: var(--accent); font-weight: 800; white-space: nowrap; }
 .empty { color: var(--muted); font-size: clamp(14px, 2vh, 24px); }
 @keyframes pop { from { transform: translateY(-8px); opacity: 0; } to { transform: none; opacity: 1; } }
 .status { font-size: .8rem; color: var(--muted); }

@@ -64,13 +64,28 @@ export default function ResultsPage() {
         <h2>기타 의견 <span className="status">({data.others.length})</span></h2>
         <div className="others">
           {data.others.length === 0 && <p className="empty">아직 없습니다.</p>}
-          {data.others.map((o, i) => (
-            <div className="note" key={`${o.at}-${i}`}>{o.text}</div>
+          {groupOthers(data.others).map((g) => (
+            <div className="note" key={g.key}>
+              {g.text}
+              {g.n > 1 && <span className="times">×{g.n}</span>}
+            </div>
           ))}
         </div>
       </section>
     </main>
   );
+}
+
+// 같은 내용(띄어쓰기·대소문자 무시)은 하나로 묶고 횟수를 셉니다. 최근에 들어온 순서를 유지합니다.
+function groupOthers(list) {
+  const map = new Map();
+  for (const o of list) {
+    const key = String(o.text).replace(/\s+/g, "").toLowerCase();
+    const g = map.get(key);
+    if (g) g.n += 1;
+    else map.set(key, { key, text: o.text, n: 1 });
+  }
+  return [...map.values()];
 }
 
 // 글자 폭 측정(캔버스). 모든 줄이 같은 px 칸 너비를 쓰도록 하기 위함.
