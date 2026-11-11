@@ -35,7 +35,7 @@ export default function ResultsPage() {
   async function reset() {
     if (!window.confirm("모든 응답을 삭제할까요? 되돌릴 수 없습니다.")) return;
     await fetch("/api/reset", { method: "POST" });
-    load();
+    setData(EMPTY); // 캐시(최대 1초) 때문에 이전 값이 잠깐 보이지 않도록 바로 비웁니다.
   }
 
   return (
@@ -64,8 +64,8 @@ export default function ResultsPage() {
         <h2>기타 의견 <span className="status">({data.others.length})</span></h2>
         <div className="others">
           {data.others.length === 0 && <p className="empty">아직 없습니다.</p>}
-          {data.others.map((o) => (
-            <div className="note" key={`${o.at}-${o.text}`}>{o.text}</div>
+          {data.others.map((o, i) => (
+            <div className="note" key={`${o.at}-${i}`}>{o.text}</div>
           ))}
         </div>
       </section>
@@ -108,7 +108,15 @@ function Chart({ title, options, hues, counts, total, highlightTop = 0, label = 
   rows.forEach((r) => { r.rank = 1 + rows.filter((x) => x.n > r.n).length; });
   const max = rows[0]?.n || 0;
   const BIG = 1.8;
-  rows.forEach((r) => { r.big = highlightTop > 0 && r.n > 0 && r.rank <= highlightTop; });
+  // 3위 이내를 크게 표시하되, 동률이 많아 MAX_BIG줄을 넘기는 순위부터는 강조하지 않습니다.
+  const MAX_BIG = 5;
+  let bigCount = 0;
+  for (const rank of [...new Set(rows.map((r) => r.rank))]) {
+    const group = rows.filter((r) => r.rank === rank);
+    const ok = highlightTop > 0 && rank <= highlightTop && group[0].n > 0 && bigCount + group.length <= MAX_BIG;
+    group.forEach((r) => { r.big = ok; r.badge = highlightTop > 0 && rank <= highlightTop && r.n > 0; });
+    if (ok) bigCount += group.length; else if (highlightTop) { rows.filter((r) => r.rank >= rank).forEach((r) => { r.big = false; }); break; }
+  }
   const W = rows.reduce((a, r) => a + (r.big ? BIG : 1), 0);
 
   // 크기 계산 (px)
@@ -117,9 +125,11 @@ function Chart({ title, options, hues, counts, total, highlightTop = 0, label = 
   const anyBig = rows.some((r) => r.big);
   const badge = highlightTop ? 1.7 : 0; // 순위 배지 폭(em)
   const longest = Math.max(...options.map((o) => textW(label(o), 1, 800)));
-  const countText = (r, fs) => textW(String(r.n), fs, 700) + textW(`(${fmtPct(r.n, total)})`, fs * 0.72, 600) + fs * 0.2;
+  // 실제 렌더링(고정폭 숫자 등)과의 차이를 감안해 여유를 둡니다.
+  const countText = (r, fs) => (textW(String(r.n), fs, 800) + textW(`(${fmtPct(r.n, total)})`, fs * 0.72, 700)) * 1.08 + fs * 0.5;
   const GAP = 24;
-  let smallFs = Math.max(11, Math.min(anyBig ? 19 : 28, unitH * 0.52));
+  const MIN_FS = 11;
+  let smallFs = Math.max(MIN_FS, Math.min(anyBig ? 19 : 28, unitH * 0.52));
   let bigFs = Math.min(30, unitH * BIG * 0.5);
   let nameW, countW;
   const layout = () => {
@@ -132,7 +142,7 @@ function Chart({ title, options, hues, counts, total, highlightTop = 0, label = 
   const room = CW * 0.6 - GAP;
   if (nameW + countW > room) {
     const k = room / (nameW + countW);
-    bigFs *= k; smallFs = Math.max(10, smallFs * k);
+    bigFs = Math.max(MIN_FS, bigFs * k); smallFs = Math.max(MIN_FS, smallFs * k);
     layout();
   }
 
@@ -162,7 +172,7 @@ function Chart({ title, options, hues, counts, total, highlightTop = 0, label = 
               }}
             >
               <span className="name" title={o}>
-                {highlightTop > 0 && (r.big ? <span className="rank">{r.rank}</span> : <span className="rank-gap" />)}
+                {highlightTop > 0 && (r.badge ? <span className="rank">{r.rank}</span> : <span className="rank-gap" />)}
                 {label(o)}
               </span>
               <div className="bar-track"><div className="bar-fill" style={{ width: `${max ? (r.n / max) * 100 : 0}%` }} /></div>

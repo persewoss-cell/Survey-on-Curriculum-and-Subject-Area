@@ -69,11 +69,14 @@ export default function SurveyPage() {
         body: JSON.stringify({ q1, q2, other: isOther ? other : "" }),
       });
       const data = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(data.error || "제출하지 못했습니다.");
+      if (!res.ok) {
+        setError(data.error || "제출하지 못했습니다. 잠시 후 다시 눌러 주세요.");
+        return;
+      }
       setDone(true);
       window.scrollTo(0, 0);
-    } catch (err) {
-      setError(err.message || "네트워크 오류가 발생했습니다. 다시 시도해 주세요.");
+    } catch {
+      setError("인터넷 연결을 확인한 뒤 다시 제출해 주세요.");
     } finally {
       setSending(false);
     }

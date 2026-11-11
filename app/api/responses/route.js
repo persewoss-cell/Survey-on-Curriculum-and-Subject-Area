@@ -17,7 +17,10 @@ export async function POST(req) {
   let other = null;
   if (q2 === OTHER) {
     // 제어문자와 앞뒤 공백을 제거합니다. 화면에 표시할 때는 React가 HTML을 이스케이프합니다.
-    other = String(body.other ?? "")
+    if (typeof body.other !== "string") {
+      return NextResponse.json({ error: "기타 내용을 입력해 주세요." }, { status: 400 });
+    }
+    other = body.other
       .replace(/[\u0000-\u001f\u007f]/g, " ")
       .replace(/\s+/g, " ")
       .trim();
