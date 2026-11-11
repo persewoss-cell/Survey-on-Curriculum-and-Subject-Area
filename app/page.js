@@ -1,7 +1,39 @@
 "use client";
 
 import { useState } from "react";
-import { Q1_TITLE, Q1_OPTIONS, Q2_TITLE, Q2_OPTIONS, OTHER, OTHER_MAX } from "@/lib/options";
+import {
+  Q1_TITLE, Q1_OPTIONS, Q2_TITLE, Q2_OPTIONS, OTHER, OTHER_MAX, Q1_HUES, Q2_HUES, tone,
+} from "@/lib/options";
+
+const Q2_CHOICES = Q2_OPTIONS.filter((o) => o !== OTHER);
+
+function Chips({ name, options, hues, value, onPick }) {
+  return (
+    <div className="chips" role="radiogroup" aria-label={name}>
+      {options.map((o) => {
+        const h = hues[o];
+        const on = value === o;
+        return (
+          <button
+            type="button"
+            key={o}
+            role="radio"
+            aria-checked={on}
+            className={`chip${on ? " on" : ""}`}
+            style={{
+              "--c-bg": tone.chip(h), "--c-line": tone.chipLine(h),
+              "--c-text": tone.chipText(h), "--c-on": tone.chipOn(h),
+            }}
+            onClick={() => onPick(o)}
+          >
+            {on && <span className="tick" aria-hidden>✓</span>}
+            {o}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
 
 export default function SurveyPage() {
   const [q1, setQ1] = useState("");
@@ -11,9 +43,19 @@ export default function SurveyPage() {
   const [error, setError] = useState("");
   const [done, setDone] = useState(false);
 
-  const otherLen = [...other].length;
-  const needOther = q2 === OTHER;
-  const canSubmit = q1 && q2 && (!needOther || other.trim()) && !sending;
+  const isOther = q2 === OTHER;
+  const canSubmit = q1 && q2 && (!isOther || other.trim()) && !sending;
+
+  function pickQ2(o) {
+    setQ2(o);
+    setOther("");
+  }
+  function typeOther(v) {
+    const text = [...v].slice(0, OTHER_MAX).join("");
+    setOther(text);
+    if (text.trim()) setQ2(OTHER);
+    else if (q2 === OTHER) setQ2("");
+  }
 
   async function submit(e) {
     e.preventDefault();
@@ -24,11 +66,12 @@ export default function SurveyPage() {
       const res = await fetch("/api/responses", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ q1, q2, other: needOther ? other : "" }),
+        body: JSON.stringify({ q1, q2, other: isOther ? other : "" }),
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(data.error || "제출하지 못했습니다.");
       setDone(true);
+      window.scrollTo(0, 0);
     } catch (err) {
       setError(err.message || "네트워크 오류가 발생했습니다. 다시 시도해 주세요.");
     } finally {
@@ -37,11 +80,7 @@ export default function SurveyPage() {
   }
 
   function again() {
-    setQ1("");
-    setQ2("");
-    setOther("");
-    setError("");
-    setDone(false);
+    setQ1(""); setQ2(""); setOther(""); setError(""); setDone(false);
     window.scrollTo(0, 0);
   }
 
@@ -50,49 +89,49 @@ export default function SurveyPage() {
       <main className="survey thanks">
         <div className="check">✓</div>
         <h2>응답해 주셔서 감사합니다</h2>
+        <p className="lead">운영한 사례가 더 있다면 한 번 더 응답해 주세요.</p>
         <button className="primary" onClick={again}>한 번 더 응답하기</button>
       </main>
     );
   }
 
+  const otherHue = Q2_HUES[OTHER];
+
   return (
     <main className="survey">
       <h1>학교자율시간 설문</h1>
-      <p className="lead">익명으로 응답합니다. 운영한 사례가 여러 개라면 여러 번 응답해 주세요.</p>
+      <p className="lead">익명 설문입니다. 운영한 사례가 여러 개라면 여러 번 응답해 주세요.</p>
       <form onSubmit={submit}>
-        <div className="q">
-          <label className="title" htmlFor="q1"><span className="num">Q1.</span>{Q1_TITLE}</label>
-          <select id="q1" value={q1} onChange={(e) => setQ1(e.target.value)}>
-            <option value="" disabled>교과군을 선택하세요</option>
-            {Q1_OPTIONS.map((o) => <option key={o} value={o}>{o}</option>)}
-          </select>
-        </div>
+        <section className="q">
+          <p className="title"><span className="num">Q1</span>{Q1_TITLE}</p>
+          <Chips name="Q1" options={Q1_OPTIONS} hues={Q1_HUES} value={q1} onPick={setQ1} />
+        </section>
 
-        <div className="q">
-          <label className="title" htmlFor="q2"><span className="num">Q2.</span>{Q2_TITLE}</label>
-          <select id="q2" value={q2} onChange={(e) => setQ2(e.target.value)}>
-            <option value="" disabled>분야를 선택하세요</option>
-            {Q2_OPTIONS.map((o) => <option key={o} value={o}>{o}</option>)}
-          </select>
-          {needOther && (
-            <div className="other-box">
-              <input
-                type="text"
-                value={other}
-                autoFocus
-                placeholder="주제 분야를 직접 입력해 주세요"
-                aria-label="기타 주제 분야"
-                onChange={(e) => setOther([...e.target.value].slice(0, OTHER_MAX).join(""))}
-              />
-              <div className="counter">{otherLen} / {OTHER_MAX}자</div>
-            </div>
-          )}
-        </div>
+        <section className="q">
+          <p className="title"><span className="num">Q2</span>{Q2_TITLE}</p>
+          <Chips name="Q2" options={Q2_CHOICES} hues={Q2_HUES} value={q2} onPick={pickQ2} />
+          <label
+            className={`other-box${isOther ? " on" : ""}`}
+            style={{ "--c-on": tone.chipOn(otherHue), "--c-bg": tone.chip(otherHue) }}
+          >
+            <span className="other-label">기타</span>
+            <input
+              type="text"
+              value={other}
+              placeholder="목록에 없으면 직접 입력"
+              onChange={(e) => typeOther(e.target.value)}
+              enterKeyHint="done"
+            />
+            <span className="counter">{[...other].length}/{OTHER_MAX}</span>
+          </label>
+        </section>
 
         {error && <p className="error" role="alert">{error}</p>}
-        <button className="primary" type="submit" disabled={!canSubmit}>
-          {sending ? "제출 중…" : "제출하기"}
-        </button>
+        <div className="submit-bar">
+          <button className="primary" type="submit" disabled={!canSubmit}>
+            {sending ? "제출 중…" : !q1 ? "Q1을 선택해 주세요" : !q2 ? "Q2를 선택해 주세요" : "제출하기"}
+          </button>
+        </div>
       </form>
     </main>
   );

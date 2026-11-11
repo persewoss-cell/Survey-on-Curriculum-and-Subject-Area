@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { Q1_TITLE, Q1_OPTIONS, Q2_TITLE, Q2_OPTIONS } from "@/lib/options";
+import { Q1_TITLE, Q1_OPTIONS, Q2_TITLE, Q2_OPTIONS, Q1_HUES, Q2_HUES, tone } from "@/lib/options";
 
 const POLL_MS = 2000;
 const EMPTY = { total: 0, q1: {}, q2: {}, others: [] };
@@ -49,13 +49,21 @@ export default function ResultsPage() {
         </div>
       </header>
 
-      <Chart title={`Q1. ${Q1_TITLE}`} options={Q1_OPTIONS} counts={data.q1} fs="2.6vh" nameW="3em" />
-      <Chart title={`Q2. ${Q2_TITLE}`} options={Q2_OPTIONS} counts={data.q2} fs="2vh" nameW="9.8em" label={(o) => (o.startsWith("기타") ? "기타" : o)} />
+      <Chart title={`Q1. ${Q1_TITLE}`} options={Q1_OPTIONS} hues={Q1_HUES} counts={data.q1} nameW="3em" />
+      <Chart
+        title={`Q2. ${Q2_TITLE}`}
+        options={Q2_OPTIONS}
+        hues={Q2_HUES}
+        counts={data.q2}
+        nameW="22vh"
+        highlightTop={3}
+        label={(o) => (o.startsWith("기타") ? "기타" : o)}
+      />
 
-      <section className="panel">
+      <section className="panel others-panel">
         <h2>기타 의견 <span className="status">({data.others.length})</span></h2>
         <div className="others">
-          {data.others.length === 0 && <p className="empty">아직 기타 의견이 없습니다.</p>}
+          {data.others.length === 0 && <p className="empty">아직 없습니다.</p>}
           {data.others.map((o) => (
             <div className="note" key={`${o.at}-${o.text}`}>{o.text}</div>
           ))}
@@ -65,19 +73,42 @@ export default function ResultsPage() {
   );
 }
 
-function Chart({ title, options, counts, fs, nameW, label = (o) => o }) {
-  const max = Math.max(0, ...options.map((o) => counts[o] || 0));
+// 응답 수 내림차순(같으면 원래 순서). 상위 highlightTop개는 줄을 크게 표시합니다.
+function Chart({ title, options, hues, counts, nameW, highlightTop = 0, label = (o) => o }) {
+  const sorted = options
+    .map((o, i) => ({ o, i, n: counts[o] || 0 }))
+    .sort((a, b) => b.n - a.n || a.i - b.i);
+  const max = sorted[0]?.n || 0;
+  const BIG = 1.9;
+  const weights = sorted.map((r, rank) => (rank < highlightTop && r.n > 0 ? BIG : 1));
+  const W = weights.reduce((a, b) => a + b, 0);
+
+  let acc = 0;
+  const pos = {};
+  sorted.forEach((r, rank) => {
+    pos[r.o] = { top: (acc / W) * 100, height: (weights[rank] / W) * 100, rank, big: weights[rank] > 1 };
+    acc += weights[rank];
+  });
+
   return (
     <section className="panel">
       <h2>{title}</h2>
-      <div className="bars">
+      <div className={`bars${highlightTop ? " ranked" : ""}`} style={{ "--name": nameW }}>
+        {/* 원래 순서로 그려야 DOM 요소가 유지되어 위치 이동이 애니메이션됩니다 */}
         {options.map((o) => {
           const n = counts[o] || 0;
-          const pct = max ? (n / max) * 100 : 0;
+          const p = pos[o];
           return (
-            <div key={o} className={`bar-row${n > 0 && n === max ? " top" : ""}`} style={{ "--fs": fs, "--name": nameW }}>
-              <span className="name" title={o}>{label(o)}</span>
-              <div className="bar-track"><div className="bar-fill" style={{ width: `${pct}%` }} /></div>
+            <div
+              key={o}
+              className={`bar-row${p.big ? " big" : ""}`}
+              style={{ top: `${p.top}%`, height: `${p.height}%`, "--bar": tone.bar(hues[o]), "--bar-strong": tone.chipOn(hues[o]) }}
+            >
+              <span className="name" title={o}>
+                {p.big && <span className="rank">{p.rank + 1}</span>}
+                {label(o)}
+              </span>
+              <div className="bar-track"><div className="bar-fill" style={{ width: `${max ? (n / max) * 100 : 0}%` }} /></div>
               <span className="count">{n}</span>
             </div>
           );
