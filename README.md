@@ -16,23 +16,17 @@
 
 ## 처음 배포하기 (약 10분, 모두 무료)
 
-### 1단계. GitHub에 코드 올리기
-이미 이 저장소가 GitHub에 있다면 건너뜁니다.
+코드는 이미 GitHub 저장소에 올라가 있으니 Vercel에서 이 저장소를 가져오기만 하면 됩니다.
 
-1. <https://github.com>에 로그인한 다음 오른쪽 위의 **+** → **New repository**를 누릅니다.
-2. 이름을 정하고 **Create repository**를 누릅니다.
-3. **uploading an existing file**을 눌러 이 폴더의 파일을 끌어다 놓습니다. `node_modules`, `.next` 폴더는 올리지 않습니다.
-4. **Commit changes**를 누릅니다.
-
-### 2단계. Vercel에 배포하기
+### 1단계. Vercel에 배포하기
 1. <https://vercel.com>에서 **Continue with GitHub**로 가입하거나 로그인합니다(Hobby 무료 플랜).
 2. **Add New… → Project**를 누릅니다.
-3. 목록에서 1단계의 저장소 옆 **Import**를 누릅니다.
+3. 목록에서 `Survey-on-Curriculum-and-Subject-Area` 저장소 옆 **Import**를 누릅니다.
 4. 설정은 그대로 두고 **Deploy**를 누릅니다. 1~2분 뒤 주소(`https://○○○.vercel.app`)가 생깁니다.
 
-> 이 상태에서도 화면은 열리지만, 아직 저장소(Redis)가 없어서 응답이 서로 공유되지 않습니다. 반드시 3단계를 하세요.
+> 이 상태에서도 화면은 열리지만, 아직 저장소(Redis)가 없어서 응답이 서로 공유되지 않습니다. 반드시 2단계를 하세요.
 
-### 3단계. 저장소(Redis) 연결하기 — 클릭만 하면 됩니다
+### 2단계. 저장소(Redis) 연결하기 — 클릭만 하면 됩니다
 1. Vercel에서 방금 만든 프로젝트로 들어가 위쪽 **Storage** 탭을 누릅니다.
 2. **Create Database**(또는 **Browse Marketplace**)에서 **Upstash → Redis**를 고르고 **Continue**를 누릅니다.
 3. 무료 플랜(Free)을 고르고 지역은 **Tokyo**나 **Seoul**처럼 가까운 곳으로 정한 뒤 **Create**를 누릅니다.
@@ -40,12 +34,12 @@
    → `KV_REST_API_URL`, `KV_REST_API_TOKEN` 같은 환경변수가 **자동으로** 들어갑니다. 직접 입력할 값은 없습니다.
 5. 환경변수는 다시 배포해야 반영됩니다. **Deployments** 탭에서 가장 위 배포의 **⋯ → Redeploy**를 누릅니다.
 
-### 4단계. 확인하기
+### 3단계. 확인하기
 1. 노트북에서 `https://○○○.vercel.app/results`를 엽니다.
 2. 휴대폰으로 `https://○○○.vercel.app/`에 들어가 한 번 응답합니다.
 3. 2초 안에 결과 화면 막대가 올라가면 성공입니다. 확인한 뒤 **전체 초기화**를 누릅니다.
 
-### 5단계. QR 코드 만들기
+### 4단계. QR 코드 만들기
 `https://○○○.vercel.app/` 주소로 QR 코드를 만들어 슬라이드에 넣습니다.
 (네이버 QR코드, 크롬 주소창의 "공유 → QR 코드 만들기" 등 무료 도구를 쓰면 됩니다.)
 
