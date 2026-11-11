@@ -49,13 +49,13 @@ export default function ResultsPage() {
         </div>
       </header>
 
-      <Chart title={`Q1. ${Q1_TITLE}`} options={Q1_OPTIONS} hues={Q1_HUES} counts={data.q1} nameW="3em" />
+      <Chart title={`Q1. ${Q1_TITLE}`} options={Q1_OPTIONS} hues={Q1_HUES} counts={data.q1} total={data.total} />
       <Chart
         title={`Q2. ${Q2_TITLE}`}
         options={Q2_OPTIONS}
         hues={Q2_HUES}
         counts={data.q2}
-        nameW="22vh"
+        total={data.total}
         highlightTop={3}
         label={(o) => (o.startsWith("기타") ? "기타" : o)}
       />
@@ -73,43 +73,100 @@ export default function ResultsPage() {
   );
 }
 
-// 응답 수 내림차순(같으면 원래 순서). 상위 highlightTop개는 줄을 크게 표시합니다.
-function Chart({ title, options, hues, counts, nameW, highlightTop = 0, label = (o) => o }) {
-  const sorted = options
+// 글자 폭 측정(캔버스). 모든 줄이 같은 px 칸 너비를 쓰도록 하기 위함.
+let ctx2d = null;
+function textW(text, px, weight) {
+  if (typeof document === "undefined") return text.length * px;
+  ctx2d = ctx2d || document.createElement("canvas").getContext("2d");
+  ctx2d.font = `${weight} ${px}px ${getComputedStyle(document.body).fontFamily}`;
+  return ctx2d.measureText(text).width;
+}
+
+function useSize(ref) {
+  const [size, setSize] = useState(null);
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    const ro = new ResizeObserver(([e]) => setSize({ w: e.contentRect.width, h: e.contentRect.height }));
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [ref]);
+  return size;
+}
+
+const fmtPct = (n, total) => `${total ? ((n / total) * 100).toFixed(1) : "0.0"}%`;
+
+// 응답 수 내림차순(같으면 원래 순서). 공동 순위: 더 많은 항목 수 + 1 (예: 1, 1, 3).
+// highlightTop이면 3위 이내(응답 1건 이상)를 크게 표시합니다.
+function Chart({ title, options, hues, counts, total, highlightTop = 0, label = (o) => o }) {
+  const boxRef = useRef(null);
+  const size = useSize(boxRef);
+
+  const rows = options
     .map((o, i) => ({ o, i, n: counts[o] || 0 }))
     .sort((a, b) => b.n - a.n || a.i - b.i);
-  const max = sorted[0]?.n || 0;
-  const BIG = 1.9;
-  const weights = sorted.map((r, rank) => (rank < highlightTop && r.n > 0 ? BIG : 1));
-  const W = weights.reduce((a, b) => a + b, 0);
+  rows.forEach((r) => { r.rank = 1 + rows.filter((x) => x.n > r.n).length; });
+  const max = rows[0]?.n || 0;
+  const BIG = 1.8;
+  rows.forEach((r) => { r.big = highlightTop > 0 && r.n > 0 && r.rank <= highlightTop; });
+  const W = rows.reduce((a, r) => a + (r.big ? BIG : 1), 0);
+
+  // 크기 계산 (px)
+  const H = size?.h || 600, CW = size?.w || 600;
+  const unitH = H / W;
+  const anyBig = rows.some((r) => r.big);
+  const badge = highlightTop ? 1.7 : 0; // 순위 배지 폭(em)
+  const longest = Math.max(...options.map((o) => textW(label(o), 1, 800)));
+  const countText = (r, fs) => textW(String(r.n), fs, 700) + textW(`(${fmtPct(r.n, total)})`, fs * 0.72, 600) + fs * 0.2;
+  const GAP = 24;
+  let smallFs = Math.max(11, Math.min(anyBig ? 19 : 28, unitH * 0.52));
+  let bigFs = Math.min(30, unitH * BIG * 0.5);
+  let nameW, countW;
+  const layout = () => {
+    // 가장 긴 항목이 (큰 글씨일 때도) 잘리지 않는 이름 칸
+    nameW = (longest + badge) * (anyBig ? bigFs : smallFs) + 6;
+    countW = Math.max(...rows.map((r) => countText(r, r.big ? bigFs : smallFs))) + 4;
+  };
+  layout();
+  // 막대가 칸 너비의 40% 이상 남도록, 부족하면 글씨를 함께 줄입니다.
+  const room = CW * 0.6 - GAP;
+  if (nameW + countW > room) {
+    const k = room / (nameW + countW);
+    bigFs *= k; smallFs = Math.max(10, smallFs * k);
+    layout();
+  }
 
   let acc = 0;
-  const pos = {};
-  sorted.forEach((r, rank) => {
-    pos[r.o] = { top: (acc / W) * 100, height: (weights[rank] / W) * 100, rank, big: weights[rank] > 1 };
-    acc += weights[rank];
-  });
+  for (const r of rows) {
+    const h = (r.big ? BIG : 1) * unitH;
+    r.top = acc; r.h = h; acc += h;
+  }
+  const byKey = Object.fromEntries(rows.map((r) => [r.o, r]));
 
   return (
     <section className="panel">
       <h2>{title}</h2>
-      <div className={`bars${highlightTop ? " ranked" : ""}`} style={{ "--name": nameW }}>
+      <div className={`bars${highlightTop ? " ranked" : ""}`} ref={boxRef}>
         {/* 원래 순서로 그려야 DOM 요소가 유지되어 위치 이동이 애니메이션됩니다 */}
         {options.map((o) => {
-          const n = counts[o] || 0;
-          const p = pos[o];
+          const r = byKey[o];
+          const fs = r.big ? bigFs : smallFs;
           return (
             <div
               key={o}
-              className={`bar-row${p.big ? " big" : ""}`}
-              style={{ top: `${p.top}%`, height: `${p.height}%`, "--bar": tone.bar(hues[o]), "--bar-strong": tone.chipOn(hues[o]) }}
+              className={`bar-row${r.big ? " big" : ""}`}
+              style={{
+                top: r.top, height: r.h, fontSize: fs,
+                gridTemplateColumns: `${nameW}px 1fr ${countW}px`,
+                "--bar": tone.bar(hues[o]), "--bar-strong": tone.chipOn(hues[o]),
+              }}
             >
               <span className="name" title={o}>
-                {p.big && <span className="rank">{p.rank + 1}</span>}
+                {highlightTop > 0 && (r.big ? <span className="rank">{r.rank}</span> : <span className="rank-gap" />)}
                 {label(o)}
               </span>
-              <div className="bar-track"><div className="bar-fill" style={{ width: `${max ? (n / max) * 100 : 0}%` }} /></div>
-              <span className="count">{n}</span>
+              <div className="bar-track"><div className="bar-fill" style={{ width: `${max ? (r.n / max) * 100 : 0}%` }} /></div>
+              <span className="count">{r.n}<small>({fmtPct(r.n, total)})</small></span>
             </div>
           );
         })}

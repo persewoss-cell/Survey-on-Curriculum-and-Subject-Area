@@ -69,7 +69,7 @@ button, select, input { font: inherit; }
 /* ---------- 결과 화면 (빔프로젝터) ---------- */
 .board {
   height: 100vh; display: grid; gap: 1.6vh 1.6vw; padding: 2vh 1.6vw;
-  grid-template-columns: 1fr 1.45fr 0.55fr; grid-template-rows: auto 1fr;
+  grid-template-columns: 0.8fr 1.6fr 0.5fr; grid-template-rows: auto 1fr;
 }
 .board header {
   grid-column: 1 / -1; display: flex; align-items: center; justify-content: space-between; gap: 2vw;
@@ -81,20 +81,21 @@ button, select, input { font: inherit; }
 .panel h2 { margin: 0 0 1.4vh; font-size: clamp(16px, 2.4vh, 30px); line-height: 1.35; }
 .bars { flex: 1; position: relative; min-height: 0; }
 .bar-row {
-  position: absolute; left: 0; right: 0; display: grid; align-items: center; gap: .6vw;
-  grid-template-columns: var(--name, 5em) 1fr 2.4em; font-size: clamp(13px, 2.5vh, 30px);
+  position: absolute; left: 0; right: 0; display: grid; align-items: center; column-gap: 12px;
   transition: top .7s cubic-bezier(.2,.8,.2,1), height .7s cubic-bezier(.2,.8,.2,1), font-size .5s;
 }
-.ranked .bar-row { font-size: clamp(11px, 1.75vh, 22px); color: var(--muted); }
-.ranked .bar-row.big { font-size: clamp(16px, 3.3vh, 40px); color: var(--text); font-weight: 800; }
+.ranked .bar-row { color: var(--muted); }
+.ranked .bar-row.big { color: var(--text); font-weight: 800; }
 .bar-row .name { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.rank {
+.rank, .rank-gap {
   display: inline-grid; place-items: center; width: 1.35em; height: 1.35em; border-radius: 50%;
-  background: var(--bar-strong); color: #fff; font-size: .7em; margin-right: .35em; vertical-align: .12em;
+  font-size: .7em; margin-right: .35em; vertical-align: .12em;
 }
+.rank { background: var(--bar-strong); color: #fff; }
 .bar-track { height: 62%; min-height: 8px; background: #eef1f8; border-radius: 6px; overflow: hidden; }
 .bar-fill { height: 100%; background: var(--bar); border-radius: 6px; transition: width .7s cubic-bezier(.2,.8,.2,1); }
-.bar-row .count { text-align: right; font-weight: 700; font-variant-numeric: tabular-nums; }
+.bar-row .count { text-align: right; font-weight: 700; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.bar-row .count small { font-size: .72em; font-weight: 600; color: var(--muted); margin-left: .15em; }
 .others { flex: 1; overflow: hidden; display: flex; flex-direction: column; gap: 1vh; }
 .note {
   background: var(--accent-soft); border-radius: 12px; padding: 1.2vh .9vw;
