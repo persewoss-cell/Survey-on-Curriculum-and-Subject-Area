@@ -2,14 +2,17 @@
 
 import { useState } from "react";
 import {
-  Q1_TITLE, Q1_OPTIONS, Q2_TITLE, Q2_OPTIONS, OTHER, OTHER_MAX, Q1_HUES, Q2_HUES, tone,
+  OP_TITLE, OP_OPTIONS, OP_YES, OP_HUES,
+  TYPE_TITLE, TYPE_OPTIONS, TYPE_HUES,
+  SUBJECT_TITLE, SUBJECT_OPTIONS, SUBJECT_HUES,
+  FIELD_TITLE, FIELD_OPTIONS, FIELD_HUES, OTHER, OTHER_MAX, tone,
 } from "@/lib/options";
 
-const Q2_CHOICES = Q2_OPTIONS.filter((o) => o !== OTHER);
+const FIELD_CHOICES = FIELD_OPTIONS.filter((o) => o !== OTHER);
 
-function Chips({ name, options, hues, value, onPick }) {
+function Chips({ name, options, hues, value, onPick, wide }) {
   return (
-    <div className="chips" role="radiogroup" aria-label={name}>
+    <div className={`chips${wide ? " wide" : ""}`} role="radiogroup" aria-label={name}>
       {options.map((o) => {
         const h = hues[o];
         const on = value === o;
@@ -35,26 +38,40 @@ function Chips({ name, options, hues, value, onPick }) {
   );
 }
 
+function Question({ num, title, children }) {
+  return (
+    <section className="q">
+      <p className="title"><span className="num">Q{num}</span>{title}</p>
+      {children}
+    </section>
+  );
+}
+
+const EMPTY = { op: "", type: "", subject: "", field: "", other: "" };
+
 export default function SurveyPage() {
-  const [q1, setQ1] = useState("");
-  const [q2, setQ2] = useState("");
-  const [other, setOther] = useState("");
+  const [a, setA] = useState(EMPTY);
   const [sending, setSending] = useState(false);
   const [error, setError] = useState("");
   const [done, setDone] = useState(false);
+  const set = (patch) => setA((prev) => ({ ...prev, ...patch }));
 
-  const isOther = q2 === OTHER;
-  const canSubmit = q1 && q2 && (!isOther || other.trim()) && !sending;
+  const running = a.op === OP_YES;
+  const isOther = a.field === OTHER;
+  const missing =
+    !a.op ? "Q1을 선택해 주세요"
+    : !running ? ""
+    : !a.type ? "Q2를 선택해 주세요"
+    : !a.subject ? "Q3을 선택해 주세요"
+    : !a.field ? "Q4를 선택해 주세요"
+    : isOther && !a.other.trim() ? "기타 내용을 입력해 주세요"
+    : "";
+  const canSubmit = !missing && !sending;
 
-  function pickQ2(o) {
-    setQ2(o);
-    setOther("");
-  }
   function typeOther(v) {
     const text = [...v].slice(0, OTHER_MAX).join("");
-    setOther(text);
-    if (text.trim()) setQ2(OTHER);
-    else if (q2 === OTHER) setQ2("");
+    if (text.trim()) set({ other: text, field: OTHER });
+    else set({ other: text, field: a.field === OTHER ? "" : a.field });
   }
 
   async function submit(e) {
@@ -63,10 +80,13 @@ export default function SurveyPage() {
     setSending(true);
     setError("");
     try {
+      const body = running
+        ? { op: a.op, type: a.type, subject: a.subject, field: a.field, other: isOther ? a.other : "" }
+        : { op: a.op };
       const res = await fetch("/api/responses", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ q1, q2, other: isOther ? other : "" }),
+        body: JSON.stringify(body),
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) {
@@ -83,7 +103,7 @@ export default function SurveyPage() {
   }
 
   function again() {
-    setQ1(""); setQ2(""); setOther(""); setError(""); setDone(false);
+    setA(EMPTY); setError(""); setDone(false);
     window.scrollTo(0, 0);
   }
 
@@ -98,41 +118,53 @@ export default function SurveyPage() {
     );
   }
 
-  const otherHue = Q2_HUES[OTHER];
+  const otherHue = FIELD_HUES[OTHER];
 
   return (
     <main className="survey">
       <h1>학교자율시간 설문</h1>
       <p className="lead">익명 설문입니다. 운영한 사례가 여러 개라면 여러 번 응답해 주세요.</p>
       <form onSubmit={submit}>
-        <section className="q">
-          <p className="title"><span className="num">Q1</span>{Q1_TITLE}</p>
-          <Chips name="Q1" options={Q1_OPTIONS} hues={Q1_HUES} value={q1} onPick={setQ1} />
-        </section>
+        <Question num={1} title={OP_TITLE}>
+          <Chips name="Q1" options={OP_OPTIONS} hues={OP_HUES} value={a.op} onPick={(op) => set({ op })} wide />
+        </Question>
 
-        <section className="q">
-          <p className="title"><span className="num">Q2</span>{Q2_TITLE}</p>
-          <Chips name="Q2" options={Q2_CHOICES} hues={Q2_HUES} value={q2} onPick={pickQ2} />
-          <label
-            className={`other-box${isOther ? " on" : ""}`}
-            style={{ "--c-on": tone.chipOn(otherHue), "--c-bg": tone.chip(otherHue) }}
-          >
-            <span className="other-label">기타</span>
-            <input
-              type="text"
-              value={other}
-              placeholder="목록에 없으면 직접 입력"
-              onChange={(e) => typeOther(e.target.value)}
-              enterKeyHint="done"
-            />
-            <span className="counter">{[...other].length}/{OTHER_MAX}</span>
-          </label>
-        </section>
+        {running && (
+          <div className="reveal">
+            <Question num={2} title={TYPE_TITLE}>
+              <Chips name="Q2" options={TYPE_OPTIONS} hues={TYPE_HUES} value={a.type} onPick={(type) => set({ type })} wide />
+            </Question>
+
+            <Question num={3} title={SUBJECT_TITLE}>
+              <Chips name="Q3" options={SUBJECT_OPTIONS} hues={SUBJECT_HUES} value={a.subject} onPick={(subject) => set({ subject })} />
+            </Question>
+
+            <Question num={4} title={FIELD_TITLE}>
+              <Chips name="Q4" options={FIELD_CHOICES} hues={FIELD_HUES} value={a.field} onPick={(field) => set({ field, other: "" })} />
+              <label
+                className={`other-box${isOther ? " on" : ""}`}
+                style={{ "--c-on": tone.chipOn(otherHue), "--c-bg": tone.chip(otherHue) }}
+              >
+                <span className="other-label">기타</span>
+                <input
+                  type="text"
+                  value={a.other}
+                  placeholder="목록에 없으면 직접 입력"
+                  onChange={(e) => typeOther(e.target.value)}
+                  enterKeyHint="done"
+                />
+                <span className="counter">{[...a.other].length}/{OTHER_MAX}</span>
+              </label>
+            </Question>
+          </div>
+        )}
+
+        {a.op && !running && <p className="note-soft">미운영을 선택하셨어요. 아래 제출 버튼을 눌러 주세요.</p>}
 
         {error && <p className="error" role="alert">{error}</p>}
         <div className="submit-bar">
           <button className="primary" type="submit" disabled={!canSubmit}>
-            {sending ? "제출 중…" : !q1 ? "Q1을 선택해 주세요" : !q2 ? "Q2를 선택해 주세요" : "제출하기"}
+            {sending ? "제출 중…" : missing || "제출하기"}
           </button>
         </div>
       </form>

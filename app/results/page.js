@@ -1,10 +1,15 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { Q1_TITLE, Q1_OPTIONS, Q2_TITLE, Q2_OPTIONS, Q1_HUES, Q2_HUES, tone } from "@/lib/options";
+import {
+  OP_TITLE, OP_OPTIONS, OP_YES, OP_HUES,
+  TYPE_TITLE, TYPE_OPTIONS, TYPE_HUES,
+  SUBJECT_TITLE, SUBJECT_OPTIONS, SUBJECT_HUES,
+  FIELD_TITLE, FIELD_OPTIONS, FIELD_HUES, tone,
+} from "@/lib/options";
 
 const POLL_MS = 2000;
-const EMPTY = { total: 0, q1: {}, q2: {}, others: [] };
+const EMPTY = { total: 0, op: {}, type: {}, subject: {}, field: {}, others: [] };
 
 export default function ResultsPage() {
   const [data, setData] = useState(EMPTY);
@@ -15,7 +20,7 @@ export default function ResultsPage() {
     try {
       const res = await fetch("/api/results", { cache: "no-store" });
       if (!res.ok) throw new Error();
-      setData(await res.json());
+      setData({ ...EMPTY, ...(await res.json()) });
       setOffline(false);
     } catch {
       setOffline(true);
@@ -38,34 +43,57 @@ export default function ResultsPage() {
     setData(EMPTY); // 캐시(최대 1초) 때문에 이전 값이 잠깐 보이지 않도록 바로 비웁니다.
   }
 
+  // Q2~Q4는 '운영'이라고 답한 분만 응답하므로 비율의 기준도 운영 응답 수입니다.
+  const running = data.op[OP_YES] || 0;
+  const others = groupOthers(data.others);
+
   return (
     <main className="board">
       <header>
-        <h1>학교자율시간 실시간 설문 결과</h1>
-        <div className="head-right">
+        <span className="head-side">
           {offline && <span className="status bad">연결 끊김 · 다시 시도 중</span>}
-          <div className="total">총 응답 <b>{data.total}</b>건</div>
+        </span>
+        <h1>
+          학교자율시간 실시간 설문 결과
+          <span className="n">(N={data.total})</span>
+        </h1>
+        <span className="head-side right">
           <button className="reset" onClick={reset}>전체 초기화</button>
-        </div>
+        </span>
       </header>
 
-      <Chart title={`Q1. ${Q1_TITLE}`} options={Q1_OPTIONS} hues={Q1_HUES} counts={data.q1} total={data.total} />
+      <div className="col-left">
+        <Split num={1} title={OP_TITLE} options={OP_OPTIONS} hues={OP_HUES} counts={data.op} />
+        <Split num={2} title={TYPE_TITLE} options={TYPE_OPTIONS} hues={TYPE_HUES} counts={data.type} />
+        <Chart
+          num={3}
+          title={SUBJECT_TITLE}
+          options={SUBJECT_OPTIONS}
+          hues={SUBJECT_HUES}
+          counts={data.subject}
+          total={running}
+          onlyVoted
+          maxRows={7}
+        />
+      </div>
       <Chart
-        title={`Q2. ${Q2_TITLE}`}
-        options={Q2_OPTIONS}
-        hues={Q2_HUES}
-        counts={data.q2}
-        total={data.total}
+        num={4}
+        title={FIELD_TITLE}
+        options={FIELD_OPTIONS}
+        hues={FIELD_HUES}
+        counts={data.field}
+        total={running}
         highlightTop={3}
         onlyVoted
+        maxRows={16}
         label={(o) => (o.startsWith("기타") ? "기타" : o)}
       />
 
       <section className="panel others-panel">
         <h2>기타 의견 <span className="status">({data.others.length})</span></h2>
         <div className="others">
-          {data.others.length === 0 && <p className="empty">아직 없습니다.</p>}
-          {groupOthers(data.others).map((g) => (
+          {others.length === 0 && <p className="empty">아직 없습니다.</p>}
+          {others.map((g) => (
             <div className="note" key={g.key}>
               {g.text}
               {g.n > 1 && <span className="times">×{g.n}</span>}
@@ -74,6 +102,27 @@ export default function ResultsPage() {
         </div>
       </section>
     </main>
+  );
+}
+
+// 두 개 중 하나를 고르는 문항: "운영 12 : 미운영 3" + 비율 막대
+function Split({ num, title, options, hues, counts }) {
+  const [a, b] = options;
+  const na = counts[a] || 0, nb = counts[b] || 0, sum = na + nb;
+  const pa = sum ? (na / sum) * 100 : 50;
+  return (
+    <section className="panel split">
+      <h2><span className="qnum">Q{num}</span>{title}</h2>
+      <div className="split-nums">
+        <span style={{ color: tone.chipOn(hues[a]) }}>{a} <b>{na}</b></span>
+        <span className="colon">:</span>
+        <span style={{ color: tone.chipOn(hues[b]) }}>{b} <b>{nb}</b></span>
+      </div>
+      <div className={`split-bar${sum ? "" : " empty"}`}>
+        <div style={{ width: `${pa}%`, background: tone.bar(hues[a]) }}>{sum > 0 && na > 0 && <em>{fmtPct(na, sum)}</em>}</div>
+        <div style={{ width: `${100 - pa}%`, background: tone.bar(hues[b]) }}>{sum > 0 && nb > 0 && <em>{fmtPct(nb, sum)}</em>}</div>
+      </div>
+    </section>
   );
 }
 
@@ -114,7 +163,7 @@ const fmtPct = (n, total) => `${total ? ((n / total) * 100).toFixed(1) : "0.0"}%
 
 // 응답 수 내림차순(같으면 원래 순서). 공동 순위: 더 많은 항목 수 + 1 (예: 1, 1, 3).
 // highlightTop이면 3위 이내(응답 1건 이상)를 크게 표시합니다.
-function Chart({ title, options, hues, counts, total, highlightTop = 0, onlyVoted = false, label = (o) => o }) {
+function Chart({ num, title, options, hues, counts, total, highlightTop = 0, onlyVoted = false, maxRows = 13, label = (o) => o }) {
   const boxRef = useRef(null);
   const size = useSize(boxRef);
 
@@ -139,15 +188,15 @@ function Chart({ title, options, hues, counts, total, highlightTop = 0, onlyVote
   // 크기 계산 (px)
   const H = size?.h || 600, CW = size?.w || 600;
   // onlyVoted: 항목이 적으면 줄 높이를 제한해 위에서부터 쌓고, 많으면 최소 높이를 지키며 스크롤합니다.
-  const unitH = onlyVoted ? Math.min(H / 13, Math.max(32, H / Math.max(W, 1))) : H / W;
+  const unitH = onlyVoted ? Math.min(H / maxRows, Math.max(32, H / Math.max(W, 1))) : H / W;
   const anyBig = rows.some((r) => r.big);
   const badge = highlightTop ? 1.7 : 0; // 순위 배지 폭(em)
   const longest = Math.max(...options.map((o) => textW(label(o), 1, 800)));
   // 실제 렌더링(고정폭 숫자 등)과의 차이를 감안해 여유를 둡니다.
   if (rows.length === 0) {
     return (
-      <section className="panel">
-        <h2>{title}</h2>
+      <section className={`panel chart q${num}`}>
+        <h2><span className="qnum">Q{num}</span>{title}</h2>
         <div className="bars" ref={boxRef}><p className="empty">아직 응답이 없습니다.</p></div>
       </section>
     );
@@ -155,7 +204,7 @@ function Chart({ title, options, hues, counts, total, highlightTop = 0, onlyVote
   const countText = (r, fs) => (textW(String(r.n), fs, 800) + textW(`(${fmtPct(r.n, total)})`, fs * 0.72, 700)) * 1.08 + fs * 0.5;
   const GAP = 24;
   const MIN_FS = 11;
-  let smallFs = Math.max(MIN_FS, Math.min(anyBig ? 19 : 28, unitH * 0.52));
+  let smallFs = Math.max(MIN_FS, Math.min(anyBig ? 19 : 26, unitH * 0.52));
   let bigFs = Math.min(30, unitH * BIG * 0.5);
   let nameW, countW;
   const layout = () => {
@@ -180,8 +229,8 @@ function Chart({ title, options, hues, counts, total, highlightTop = 0, onlyVote
   const byKey = Object.fromEntries(rows.map((r) => [r.o, r]));
 
   return (
-    <section className="panel">
-      <h2>{title}</h2>
+    <section className={`panel chart q${num}`}>
+      <h2><span className="qnum">Q{num}</span>{title}</h2>
       <div className={`bars${highlightTop ? " ranked" : ""}${onlyVoted ? " scroll" : ""}`} ref={boxRef}>
         {/* 원래 순서로 그려야 DOM 요소가 유지되어 위치 이동이 애니메이션됩니다 */}
         {options.map((o) => {
