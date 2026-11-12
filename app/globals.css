@@ -135,12 +135,6 @@ button, select, input { font: inherit; }
 .qr-panel h2 { margin-bottom: 1vh; }
 .qr { width: min(100%, 27vh); aspect-ratio: 1; }
 .qr svg { display: block; width: 100%; height: 100%; }
-.qr-url { margin: 1vh 0 0; font-size: clamp(11px, 1.5vh, 18px); font-weight: 700; color: var(--muted); overflow-wrap: anywhere; }
-.qr-meta { display: flex; flex-direction: column; align-items: center; }
-.qr-save {
-  margin-top: .8vh; border: 0; background: var(--accent-soft); color: var(--accent); border-radius: 999px;
-  padding: 5px 12px; font-size: clamp(11px, 1.3vh, 15px); font-weight: 700; cursor: pointer;
-}
 .others { flex: 1; overflow-y: auto; overscroll-behavior: contain; display: flex; flex-direction: column; gap: 1vh; }
 .note {
   background: var(--accent-soft); border-radius: 16px; padding: 1.2vh .9vw;
@@ -163,10 +157,9 @@ button, select, input { font: inherit; }
   .col-right { grid-column: 1 / -1; flex-direction: row; height: 19vh; }
   .col-right .others-panel { min-width: 0; }
   .qr-panel { flex-direction: row; gap: 1.2vw; padding: 1.2vh 1.2vw; text-align: left; }
+  .qr-panel { order: 2; }
   .qr-panel h2 { display: none; }
   .qr { width: auto; height: 100%; }
-  .qr-panel .qr-meta { display: flex; flex-direction: column; align-items: flex-start; justify-content: center; }
-  .qr-panel .qr-meta::before { content: "휴대폰으로 참여하기"; font-weight: 800; font-size: clamp(13px, 2vh, 22px); }
   .others-panel .others { flex-direction: row; flex-wrap: wrap; align-content: flex-start; }
   .others-panel .note { padding: .8vh 1vw; }
 }

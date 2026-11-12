@@ -91,6 +91,7 @@ export default function ResultsPage() {
       />
 
       <div className="col-right">
+      <QrCard />
       <section className="panel others-panel">
         <h2>기타 의견 <span className="status">({data.others.length})</span></h2>
         <div className="others">
@@ -103,7 +104,6 @@ export default function ResultsPage() {
           ))}
         </div>
       </section>
-      <QrCard />
       </div>
     </main>
   );
@@ -119,27 +119,11 @@ function QrCard() {
       .catch(() => {});
   }, []);
 
-  async function save() {
-    const dataUrl = await QRCode.toDataURL(qr.url, { width: 1200, margin: 4, errorCorrectionLevel: "M" });
-    const blob = await (await fetch(dataUrl)).blob();
-    const a = document.createElement("a");
-    a.href = URL.createObjectURL(blob);
-    a.download = "survey-qr.png";
-    document.body.appendChild(a);
-    a.click();
-    a.remove();
-    setTimeout(() => URL.revokeObjectURL(a.href), 1000);
-  }
-
   return (
     <section className="panel qr-panel">
       <h2>휴대폰으로 참여하기</h2>
       {/* qrcode 라이브러리가 만든 SVG(외부 입력 없음) */}
       <div className="qr" aria-label={`설문 주소 QR 코드: ${qr.url}`} dangerouslySetInnerHTML={{ __html: qr.svg }} />
-      <div className="qr-meta">
-      <p className="qr-url">{qr.url.replace(/^https?:\/\//, "").replace(/\/$/, "")}</p>
-      {qr.url && <button className="qr-save" onClick={save}>QR 이미지 저장</button>}
-      </div>
     </section>
   );
 }
