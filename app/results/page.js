@@ -57,6 +57,7 @@ export default function ResultsPage() {
         counts={data.q2}
         total={data.total}
         highlightTop={3}
+        onlyVoted
         label={(o) => (o.startsWith("기타") ? "기타" : o)}
       />
 
@@ -113,12 +114,13 @@ const fmtPct = (n, total) => `${total ? ((n / total) * 100).toFixed(1) : "0.0"}%
 
 // 응답 수 내림차순(같으면 원래 순서). 공동 순위: 더 많은 항목 수 + 1 (예: 1, 1, 3).
 // highlightTop이면 3위 이내(응답 1건 이상)를 크게 표시합니다.
-function Chart({ title, options, hues, counts, total, highlightTop = 0, label = (o) => o }) {
+function Chart({ title, options, hues, counts, total, highlightTop = 0, onlyVoted = false, label = (o) => o }) {
   const boxRef = useRef(null);
   const size = useSize(boxRef);
 
   const rows = options
     .map((o, i) => ({ o, i, n: counts[o] || 0 }))
+    .filter((r) => !onlyVoted || r.n > 0) // onlyVoted: 응답이 있는 항목만 표시
     .sort((a, b) => b.n - a.n || a.i - b.i);
   rows.forEach((r) => { r.rank = 1 + rows.filter((x) => x.n > r.n).length; });
   const max = rows[0]?.n || 0;
@@ -129,18 +131,27 @@ function Chart({ title, options, hues, counts, total, highlightTop = 0, label = 
   for (const rank of [...new Set(rows.map((r) => r.rank))]) {
     const group = rows.filter((r) => r.rank === rank);
     const ok = highlightTop > 0 && rank <= highlightTop && group[0].n > 0 && bigCount + group.length <= MAX_BIG;
-    group.forEach((r) => { r.big = ok; r.badge = highlightTop > 0 && rank <= highlightTop && r.n > 0; });
+    group.forEach((r) => { r.big = ok; }); // 순위 배지도 크게 표시되는 줄에만
     if (ok) bigCount += group.length; else if (highlightTop) { rows.filter((r) => r.rank >= rank).forEach((r) => { r.big = false; }); break; }
   }
   const W = rows.reduce((a, r) => a + (r.big ? BIG : 1), 0);
 
   // 크기 계산 (px)
   const H = size?.h || 600, CW = size?.w || 600;
-  const unitH = H / W;
+  // onlyVoted: 항목이 적으면 줄 높이를 제한해 위에서부터 쌓고, 많으면 최소 높이를 지키며 스크롤합니다.
+  const unitH = onlyVoted ? Math.min(H / 13, Math.max(32, H / Math.max(W, 1))) : H / W;
   const anyBig = rows.some((r) => r.big);
   const badge = highlightTop ? 1.7 : 0; // 순위 배지 폭(em)
   const longest = Math.max(...options.map((o) => textW(label(o), 1, 800)));
   // 실제 렌더링(고정폭 숫자 등)과의 차이를 감안해 여유를 둡니다.
+  if (rows.length === 0) {
+    return (
+      <section className="panel">
+        <h2>{title}</h2>
+        <div className="bars" ref={boxRef}><p className="empty">아직 응답이 없습니다.</p></div>
+      </section>
+    );
+  }
   const countText = (r, fs) => (textW(String(r.n), fs, 800) + textW(`(${fmtPct(r.n, total)})`, fs * 0.72, 700)) * 1.08 + fs * 0.5;
   const GAP = 24;
   const MIN_FS = 11;
@@ -171,10 +182,11 @@ function Chart({ title, options, hues, counts, total, highlightTop = 0, label = 
   return (
     <section className="panel">
       <h2>{title}</h2>
-      <div className={`bars${highlightTop ? " ranked" : ""}`} ref={boxRef}>
+      <div className={`bars${highlightTop ? " ranked" : ""}${onlyVoted ? " scroll" : ""}`} ref={boxRef}>
         {/* 원래 순서로 그려야 DOM 요소가 유지되어 위치 이동이 애니메이션됩니다 */}
         {options.map((o) => {
           const r = byKey[o];
+          if (!r) return null;
           const fs = r.big ? bigFs : smallFs;
           return (
             <div
@@ -187,7 +199,7 @@ function Chart({ title, options, hues, counts, total, highlightTop = 0, label = 
               }}
             >
               <span className="name" title={o}>
-                {highlightTop > 0 && (r.badge ? <span className="rank">{r.rank}</span> : <span className="rank-gap" />)}
+                {highlightTop > 0 && (r.big ? <span className="rank">{r.rank}</span> : <span className="rank-gap" />)}
                 {label(o)}
               </span>
               <div className="bar-track"><div className="bar-fill" style={{ width: `${max ? (r.n / max) * 100 : 0}%` }} /></div>
@@ -195,6 +207,7 @@ function Chart({ title, options, hues, counts, total, highlightTop = 0, label = 
             </div>
           );
         })}
+        {onlyVoted && <div aria-hidden style={{ height: acc }} />}
       </div>
     </section>
   );

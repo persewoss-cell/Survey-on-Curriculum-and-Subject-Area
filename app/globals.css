@@ -80,6 +80,7 @@ button, select, input { font: inherit; }
 .panel { background: var(--card); border: 1px solid var(--line); border-radius: 18px; padding: 2vh 1.2vw; min-height: 0; display: flex; flex-direction: column; }
 .panel h2 { margin: 0 0 1.4vh; font-size: clamp(16px, 2.4vh, 30px); line-height: 1.35; }
 .bars { flex: 1; position: relative; min-height: 0; }
+.bars.scroll { overflow-y: auto; overflow-x: hidden; overscroll-behavior: contain; }
 .bar-row {
   position: absolute; left: 0; right: 0; display: grid; align-items: center; column-gap: 12px;
   transition: top .7s cubic-bezier(.2,.8,.2,1), height .7s cubic-bezier(.2,.8,.2,1), font-size .5s;
@@ -92,7 +93,7 @@ button, select, input { font: inherit; }
   font-size: .7em; margin-right: .35em; vertical-align: .12em;
 }
 .rank { background: var(--bar-strong); color: #fff; }
-.bar-track { height: 62%; min-height: 8px; background: #eef1f8; border-radius: 6px; overflow: hidden; }
+.bar-track { height: min(62%, 1.3em); min-height: 8px; background: #eef1f8; border-radius: 6px; overflow: hidden; }
 .bar-fill { height: 100%; background: var(--bar); border-radius: 6px; transition: width .7s cubic-bezier(.2,.8,.2,1); }
 .bar-row .count { text-align: right; font-weight: 700; font-variant-numeric: tabular-nums; white-space: nowrap; }
 .bar-row .count small { font-size: .72em; font-weight: 600; color: var(--muted); margin-left: .15em; }
