@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import {
+  REGIONS, SCHOOL_SUFFIX, SCHOOL_MAX, cleanSchool,
   OP_TITLE, OP_OPTIONS, OP_YES, OP_HUES,
   TYPE_TITLE, TYPE_OPTIONS, TYPE_HUES,
   SUBJECT_TITLE, SUBJECT_OPTIONS, SUBJECT_HUES,
@@ -47,7 +48,7 @@ function Question({ num, title, children }) {
   );
 }
 
-const EMPTY = { op: "", type: "", subject: "", field: "", other: "" };
+const EMPTY = { region: "", school: "", op: "", type: "", subject: "", field: "", other: "" };
 
 export default function SurveyPage() {
   const [a, setA] = useState(EMPTY);
@@ -58,8 +59,11 @@ export default function SurveyPage() {
 
   const running = a.op === OP_YES;
   const isOther = a.field === OTHER;
+  const schoolName = cleanSchool(a.school);
   const missing =
-    !a.op ? "Q1을 선택해 주세요"
+    !a.region ? "지역을 선택해 주세요"
+    : !schoolName ? "학교명을 입력해 주세요"
+    : !a.op ? "Q1을 선택해 주세요"
     : !running ? ""
     : !a.type ? "Q2를 선택해 주세요"
     : !a.subject ? "Q3을 선택해 주세요"
@@ -80,9 +84,10 @@ export default function SurveyPage() {
     setSending(true);
     setError("");
     try {
+      const base = { region: a.region, school: schoolName, op: a.op };
       const body = running
-        ? { op: a.op, type: a.type, subject: a.subject, field: a.field, other: isOther ? a.other : "" }
-        : { op: a.op };
+        ? { ...base, type: a.type, subject: a.subject, field: a.field, other: isOther ? a.other : "" }
+        : base;
       const res = await fetch("/api/responses", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -103,7 +108,9 @@ export default function SurveyPage() {
   }
 
   function again() {
-    setA(EMPTY); setError(""); setDone(false);
+    // 같은 분이 이어서 응답하는 경우가 많아 지역·학교명은 그대로 둡니다.
+    setA((prev) => ({ ...EMPTY, region: prev.region, school: prev.school }));
+    setError(""); setDone(false);
     window.scrollTo(0, 0);
   }
 
@@ -123,8 +130,34 @@ export default function SurveyPage() {
   return (
     <main className="survey">
       <h1>학교자율시간 설문</h1>
-      <p className="lead">익명 설문입니다. 운영한 사례가 여러 개라면 여러 번 응답해 주세요.</p>
+      <p className="lead">이름 등 개인 정보는 받지 않습니다. 운영한 사례가 여러 개라면 여러 번 응답해 주세요.</p>
       <form onSubmit={submit}>
+        <section className="q basic">
+          <p className="title"><span className="num req">필수</span>학교 정보</p>
+          <label className="field-label" htmlFor="region">지역 (시·군·구)</label>
+          <select
+            id="region"
+            className={`select${a.region ? "" : " placeholder"}`}
+            value={a.region}
+            onChange={(e) => set({ region: e.target.value })}
+          >
+            <option value="" disabled>지역을 고르세요</option>
+            {REGIONS.map((r) => <option key={r} value={r}>{r}</option>)}
+          </select>
+          <label className="field-label" htmlFor="school">학교명 (정식 명칭)</label>
+          <div className="school-input">
+            <input
+              id="school"
+              type="text"
+              value={a.school}
+              placeholder="예: 광양중동"
+              autoComplete="off"
+              onChange={(e) => set({ school: [...e.target.value].slice(0, SCHOOL_MAX + SCHOOL_SUFFIX.length).join("") })}
+            />
+            <span className="suffix">{SCHOOL_SUFFIX}</span>
+          </div>
+        </section>
+
         <Question num={1} title={OP_TITLE}>
           <Chips name="Q1" options={OP_OPTIONS} hues={OP_HUES} value={a.op} onPick={(op) => set({ op })} wide />
         </Question>

@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import {
+  REGIONS, SCHOOL_SUFFIX, SCHOOL_MAX, SCHOOL_PATTERN, cleanSchool,
   OP_OPTIONS, OP_YES, TYPE_OPTIONS, SUBJECT_OPTIONS, FIELD_OPTIONS, OTHER, OTHER_MAX,
 } from "@/lib/options";
 import { addResponse } from "@/lib/store";
@@ -13,12 +14,20 @@ export async function POST(req) {
   } catch {
     return bad("잘못된 요청입니다.");
   }
-  const { op, type, subject, field } = body || {};
+  const { region, op, type, subject, field } = body || {};
+  if (!REGIONS.includes(region)) return bad("지역을 선택해 주세요.");
+  if (typeof body.school !== "string") return bad("학교명을 입력해 주세요.");
+  const name = cleanSchool(body.school);
+  if (!name) return bad("학교명을 입력해 주세요.");
+  if ([...name].length > SCHOOL_MAX || !SCHOOL_PATTERN.test(name)) {
+    return bad(`학교명은 한글·영문·숫자 ${SCHOOL_MAX}자 이내로 입력해 주세요.`);
+  }
+  const school = name + SCHOOL_SUFFIX;
   if (!OP_OPTIONS.includes(op)) return bad("Q1을 선택해 주세요.");
 
   // 미운영이면 나머지 문항 없이 저장합니다.
   if (op !== OP_YES) {
-    await addResponse({ op });
+    await addResponse({ region, school, op });
     return NextResponse.json({ ok: true });
   }
 
@@ -35,6 +44,6 @@ export async function POST(req) {
     if ([...other].length > OTHER_MAX) return bad(`기타 내용은 ${OTHER_MAX}자 이내로 입력해 주세요.`);
   }
 
-  await addResponse({ op, type, subject, field, other });
+  await addResponse({ region, school, op, type, subject, field, other });
   return NextResponse.json({ ok: true });
 }

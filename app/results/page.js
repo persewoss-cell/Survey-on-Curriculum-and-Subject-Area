@@ -44,6 +44,27 @@ export default function ResultsPage() {
     setData(EMPTY); // 캐시(최대 1초) 때문에 이전 값이 잠깐 보이지 않도록 바로 비웁니다.
   }
 
+  // 학교 일괄 등록 엑셀: 서버가 정한 파일 이름(학교_일괄등록_날짜.xlsx)으로 저장합니다.
+  async function downloadExcel(e) {
+    e.preventDefault();
+    try {
+      const res = await fetch("/api/export", { cache: "no-store" });
+      if (!res.ok) throw new Error();
+      const cd = res.headers.get("Content-Disposition") || "";
+      const m = cd.match(/filename\*=UTF-8''([^;]+)/);
+      const name = m ? decodeURIComponent(m[1]) : "학교_일괄등록.xlsx";
+      const a = document.createElement("a");
+      a.href = URL.createObjectURL(await res.blob());
+      a.download = name;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+    } catch {
+      window.location.href = "/api/export";
+    }
+  }
+
   // Q2~Q4는 '운영'이라고 답한 분만 응답하므로 비율의 기준도 운영 응답 수입니다.
   const running = data.op[OP_YES] || 0;
   const others = groupOthers(data.others);
@@ -59,6 +80,11 @@ export default function ResultsPage() {
           <span className="n">(N={data.total})</span>
         </h1>
         <span className="head-side right">
+          <a className="icon-btn" href="/api/export" onClick={downloadExcel} title="학교 일괄 등록 엑셀 내려받기" aria-label="학교 일괄 등록 엑셀 내려받기">
+            <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M12 4v11" /><path d="M7 10l5 5 5-5" /><path d="M5 20h14" />
+            </svg>
+          </a>
           <button className="reset" onClick={reset}>전체 초기화</button>
         </span>
       </header>
