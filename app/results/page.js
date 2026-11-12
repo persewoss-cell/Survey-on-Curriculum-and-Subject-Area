@@ -133,13 +133,15 @@ function Split({ num, title, options, hues, counts }) {
   const [a, b] = options;
   const na = counts[a] || 0, nb = counts[b] || 0, sum = na + nb;
   const pa = sum ? (na / sum) * 100 : 50;
+  // 한쪽이 0건이면 막대에 그 칸이 없으므로 숫자 옆에 (0%)를 붙입니다. 응답이 생기면 %는 막대 안으로 옮겨갑니다.
+  const zero = (n) => (sum > 0 && n === 0 ? <small className="zero">(0%)</small> : null);
   return (
     <section className="panel split">
       <h2><span className="qnum">Q{num}</span>{title}</h2>
       <div className="split-nums">
-        <span style={{ color: tone.chipOn(hues[a]) }}>{a} <b>{na}</b></span>
+        <span style={{ color: tone.chipOn(hues[a]) }}>{a} <b>{na}</b>{zero(na)}</span>
         <span className="colon">:</span>
-        <span style={{ color: tone.chipOn(hues[b]) }}>{b} <b>{nb}</b></span>
+        <span style={{ color: tone.chipOn(hues[b]) }}>{b} <b>{nb}</b>{zero(nb)}</span>
       </div>
       <div className={`split-bar${sum ? "" : " empty"}`}>
         <div style={{ width: `${pa}%`, background: tone.bar(hues[a]) }}>{sum > 0 && na > 0 && <em>{fmtPct(na, sum)}</em>}</div>
