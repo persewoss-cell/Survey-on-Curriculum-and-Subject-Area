@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import QRCode from "qrcode";
 import {
   OP_TITLE, OP_OPTIONS, OP_YES, OP_HUES,
   TYPE_TITLE, TYPE_OPTIONS, TYPE_HUES,
@@ -89,6 +90,7 @@ export default function ResultsPage() {
         label={(o) => (o.startsWith("기타") ? "기타" : o)}
       />
 
+      <div className="col-right">
       <section className="panel others-panel">
         <h2>기타 의견 <span className="status">({data.others.length})</span></h2>
         <div className="others">
@@ -101,7 +103,44 @@ export default function ResultsPage() {
           ))}
         </div>
       </section>
+      <QrCard />
+      </div>
     </main>
+  );
+}
+
+// 설문 참여 QR: 이 결과 화면을 연 주소(도메인)를 그대로 써서 만듭니다.
+function QrCard() {
+  const [qr, setQr] = useState({ url: "", svg: "" });
+  useEffect(() => {
+    const url = `${window.location.origin}/`;
+    QRCode.toString(url, { type: "svg", margin: 0, errorCorrectionLevel: "M", color: { dark: "#2b3044", light: "#ffffff" } })
+      .then((svg) => setQr({ url, svg }))
+      .catch(() => {});
+  }, []);
+
+  async function save() {
+    const dataUrl = await QRCode.toDataURL(qr.url, { width: 1200, margin: 4, errorCorrectionLevel: "M" });
+    const blob = await (await fetch(dataUrl)).blob();
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = "survey-qr.png";
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+  }
+
+  return (
+    <section className="panel qr-panel">
+      <h2>휴대폰으로 참여하기</h2>
+      {/* qrcode 라이브러리가 만든 SVG(외부 입력 없음) */}
+      <div className="qr" aria-label={`설문 주소 QR 코드: ${qr.url}`} dangerouslySetInnerHTML={{ __html: qr.svg }} />
+      <div className="qr-meta">
+      <p className="qr-url">{qr.url.replace(/^https?:\/\//, "").replace(/\/$/, "")}</p>
+      {qr.url && <button className="qr-save" onClick={save}>QR 이미지 저장</button>}
+      </div>
+    </section>
   );
 }
 
@@ -188,7 +227,7 @@ function Chart({ num, title, options, hues, counts, total, highlightTop = 0, onl
   // 크기 계산 (px)
   const H = size?.h || 600, CW = size?.w || 600;
   // onlyVoted: 항목이 적으면 줄 높이를 제한해 위에서부터 쌓고, 많으면 최소 높이를 지키며 스크롤합니다.
-  const unitH = onlyVoted ? Math.min(H / maxRows, Math.max(32, H / Math.max(W, 1))) : H / W;
+  const unitH = onlyVoted ? Math.max(32, Math.min(H / maxRows, H / Math.max(W, 1))) : H / W;
   const anyBig = rows.some((r) => r.big);
   const badge = highlightTop ? 1.7 : 0; // 순위 배지 폭(em)
   const longest = Math.max(...options.map((o) => textW(label(o), 1, 800)));
